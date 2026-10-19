@@ -1,4 +1,4 @@
-# WP-Members-gate (HHH Members Gate)
+# WP-Members-gate 
 
 A WordPress plugin that makes a whole site members-only. Pages, feeds, the REST API and every uploaded file need a login. An allowlist keeps the AI connectors (Novamira OAuth / MCP) working, and an hourly self-test checks that uploads are not leaking.
 
