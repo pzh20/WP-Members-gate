@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       HHH Members Gate
  * Description:       Makes the whole site members-only: pages, feeds, the REST API and every uploaded file need a login. Keeps an allowlist so AI connectors (Novamira OAuth / MCP) keep working, and checks hourly that photos are not leaking.
- * Version:           1.1.0
+ * Version:           1.2.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            HHH Consulting
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const HMG_VERSION = '1.1.0';
+const HMG_VERSION = '1.2.0';
 const HMG_OPTION  = 'hmg_settings';
 const HMG_LOG     = 'hmg_log';
 const HMG_MARKER  = 'HHH Members Gate';
@@ -280,11 +280,25 @@ function hmg_serve_file() {
 		exit;
 	}
 
-	hmg_stream( $path );
+	/**
+	 * Lets other code send a different file for this member (since 1.2.0), e.g. a copy of a
+	 * photo with a face pixelated. Only a real file is accepted; otherwise the request 404s.
+	 */
+	$swap = apply_filters( 'hmg_serve_path', $path, $rel, $var );
+	if ( $swap !== $path ) {
+		if ( ! is_string( $swap ) || ! is_file( $swap ) ) {
+			status_header( 404 );
+			nocache_headers();
+			exit;
+		}
+		$path = $swap;
+	}
+
+	hmg_stream( $path, (string) apply_filters( 'hmg_cache_control', 'private, max-age=86400', $rel, $var ) );
 }
 
 /** Send a file with browser caching (private) and single-range support for video. */
-function hmg_stream( $path ) {
+function hmg_stream( $path, $cache_control = 'private, max-age=86400' ) {
 	$size  = (int) filesize( $path );
 	$mtime = (int) filemtime( $path );
 	$etag  = '"' . md5( $path . $size . $mtime ) . '"';
@@ -296,7 +310,7 @@ function hmg_stream( $path ) {
 	}
 	header_remove( 'Pragma' );
 	header_remove( 'Expires' );
-	header( 'Cache-Control: private, max-age=86400' );
+	header( 'Cache-Control: ' . $cache_control );
 	header( 'Vary: Cookie' );
 	header( 'ETag: ' . $etag );
 	header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', $mtime ) . ' GMT' );
